@@ -10,12 +10,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { chatSession } from "@/utils/GeminiAIModal";
 import { LoaderCircle } from "lucide-react";
 import { MockInterview } from "@/utils/schema";
 import { v4 as uuidv4 } from 'uuid';
 import { db } from "@/utils/db";
 import { useUser } from "@clerk/nextjs";
 import moment from "moment";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 function AddNewInterview() {
@@ -25,19 +27,23 @@ function AddNewInterview() {
   const [jobExperience, setJobExperience] = useState("");
   const [loading, setLoading] = useState(false);
   const { user } = useUser();
+  const router = useRouter();
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate generation and saving
-    setTimeout(async () => {
-      try {
-        const mockResponse = [
-          { question: "What is your experience?", answer: "Sample answer" }
-        ];
-        
-        await db.insert(MockInterview).values({
+  
+    const inputPrompt = "Job position: " + jobPosition + ", Job Description: " + jobDescription + ", Years of Experience: " + jobExperience + ". Generate 5 interview questions and answers in JSON format.";
+  
+    try {
+      const result = await chatSession.sendMessage(inputPrompt);
+      const responseText = await result.response.text();
+      // Safe string replacement without escaping backslashes in regex literals
+      const cleanedResponse = responseText.replace("`" + "`" + "\`json", "").replace("`" + "`" + "\`" , "").trim();
+      const mockResponse = JSON.parse(cleanedResponse);
+      
+      const res = await db.insert(MockInterview)
+        .values({
           mockId: uuidv4(),
           jsonMockResp: JSON.stringify(mockResponse),
           jobPosition: jobPosition,
@@ -45,17 +51,16 @@ function AddNewInterview() {
           jobExperience: jobExperience,
           createdBy: user?.primaryEmailAddress?.emailAddress,
           createdAt: moment().format('DD-MM-YYYY'),
-        });
-        
-        toast.success('Interview created successfully (Simulated)');
-        setOpenDialog(false);
-      } catch (error) {
-        console.error("Error creating interview:", error);
-        toast.error('Failed to create interview');
-      } finally {
-        setLoading(false);
-      }
-    }, 1500);
+        }).returning({ mockId: MockInterview.mockId });
+      
+      toast.success('Interview questions generated successfully!');
+      router.push('dashboard/interview/' + res[0]?.mockId);
+    } catch (error) {
+      console.error("Error generating interview:", error);
+      toast.error('Failed to generate interview questions.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
