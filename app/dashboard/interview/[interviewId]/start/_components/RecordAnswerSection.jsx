@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import React, { useEffect, useState, useRef } from "react";
 import { Mic, StopCircle, Loader2, Camera, CameraOff } from "lucide-react";
 import { toast } from "sonner";
+import { chatSession } from "@/utils/GeminiAIModal";
 import { db } from "@/utils/db";
 import { UserAnswer } from "@/utils/schema";
 import { useUser } from "@clerk/nextjs";
@@ -77,31 +78,45 @@ const RecordAnswerSection = ({
     }
     if (isRecording) {
       recognitionRef.current.stop();
+      toast.info("Recording stopped");
     } else {
       recognitionRef.current.start();
       setIsRecording(true);
+      toast.info("Recording started");
     }
   };
 
   const UpdateUserAnswer = async () => {
+    if (!userAnswer.trim()) {
+      toast.error("Please provide an answer");
+      return;
+    }
     setLoading(true);
+
     try {
+      const feedbackPrompt = "Question: " + mockInterviewQuestion[activeQuestionIndex]?.question + ", User Answer: " + userAnswer + ". Please give a rating out of 10 and feedback on improvement in JSON format { \\\"rating\\\": <number>, \\\"feedback\\\": <text> }";
+      
+      const result = await chatSession.sendMessage(feedbackPrompt);
+      const mockJsonResp = result.response.text().replace("`" + "`" + "\`json", "").replace("`" + "`" + "\`" , "").trim();
+      const JsonfeedbackResp = JSON.parse(mockJsonResp);
+
       const answerRecord = {
         mockIdRef: interviewData?.mockId,
         question: mockInterviewQuestion[activeQuestionIndex]?.question,
         correctAns: mockInterviewQuestion[activeQuestionIndex]?.answer,
         userAns: userAnswer,
-        feedback: "Your speech details: " + userAnswer,
-        rating: "8",
+        feedback: JsonfeedbackResp?.feedback,
+        rating: JsonfeedbackResp?.rating,
         userEmail: user?.primaryEmailAddress?.emailAddress,
         createdAt: moment().format("DD-MM-YYYY"),
       };
 
       await db.insert(UserAnswer).values(answerRecord);
       onAnswerSave?.(answerRecord);
-      toast.success("Answer saved successfully (Local)");
+      toast.success("Answer recorded successfully");
       setUserAnswer("");
     } catch (error) {
+      console.error(error);
       toast.error("Failed to save answer");
     } finally {
       setLoading(false);
