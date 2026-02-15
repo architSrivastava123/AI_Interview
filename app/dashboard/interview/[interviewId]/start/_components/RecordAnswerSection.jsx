@@ -52,6 +52,13 @@ const RecordAnswerSection = ({
         setIsRecording(false);
       };
     }
+
+    // Fix: Clean up speech recognition on unmount to prevent audio state memory leaks
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
   }, []);
 
   const EnableWebcam = async () => {

@@ -6,6 +6,8 @@ function QuestionsSection({ mockInterviewQuestion, activeQuestionIndex }) {
   
   const textToSpeech = (text) => {
     if ('speechSynthesis' in window) {
+      // Fix: Cancel current speaking stream first to prevent speech overlaying
+      window.speechSynthesis.cancel();
       const speech = new SpeechSynthesisUtterance(text);
       window.speechSynthesis.speak(speech);
     } else {
