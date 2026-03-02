@@ -1,73 +1,124 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { db } from "@/utils/db";
 import { MockInterview } from "@/utils/schema";
 import { eq } from "drizzle-orm";
 import { Lightbulb, WebcamIcon } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import Image from "next/image";
+import React, { useEffect, useState } from "react";
+import Webcam from "react-webcam";
+import { toast } from "sonner";
 
 function Interview({ params }) {
-  const [interviewData, setInterviewData] = useState();
+  const [interviewData, setInterviewData] = useState(null);
   const [webCamEnabled, setWebCamEnabled] = useState(false);
+  const trackLabel = interviewData?.interviewTrack || "General";
 
   useEffect(() => {
     GetInterviewDetails();
   }, []);
 
   const GetInterviewDetails = async () => {
-    const result = await db
-      .select()
-      .from(MockInterview)
-      .where(eq(MockInterview.mockId, params.interviewId));
-    setInterviewData(result[0]);
+    try {
+      const result = await db
+        .select()
+        .from(MockInterview)
+        .where(eq(MockInterview.mockId, params.interviewId));
+
+      if (result.length > 0) {
+        setInterviewData(result[0]);
+      } else {
+        toast.error("Interview details not found");
+      }
+    } catch (error) {
+      toast.error("Error fetching interview details");
+      console.error("Interview details fetch error:", error);
+    }
   };
 
+  const handleWebcamToggle = () => {
+    if (!webCamEnabled) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(() => {
+          setWebCamEnabled(true);
+          toast.success("Webcam and microphone enabled");
+        })
+        .catch((error) => {
+          toast.error("Failed to access webcam or microphone");
+          console.error("Webcam access error:", error);
+        });
+    } else {
+      setWebCamEnabled(false);
+    }
+  };
+
+  if (!interviewData) {
+    return <div>Loading interview details...</div>;
+  }
+
   return (
-    <div className="my-10 max-w-5xl mx-auto px-4">
-      <h2 className="font-bold text-3xl text-gray-800">Let's Get Started</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-10">
-        <div className="flex flex-col gap-5 justify-between">
-          <div className="flex flex-col p-5 rounded-lg border gap-5 bg-white shadow-sm">
-            <h2 className="text-lg"><strong>Job Role/Position: </strong>{interviewData?.jobPosition}</h2>
-            <h2 className="text-lg"><strong>Job Description/Tech Stack: </strong>{interviewData?.jobDesc}</h2>
-            <h2 className="text-lg"><strong>Years of Experience: </strong>{interviewData?.jobExperience}</h2>
+    <div className="my-10">
+      <h2 className="font-bold text-2xl">Let's get started</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <div className="flex flex-col my-5 gap-5">
+          <div className="flex flex-col p-5 rounded-lg border gap-5">
+            <h2 className="text-lg">
+              <strong>Interview Track: </strong>
+              {trackLabel}
+            </h2>
+            <h2 className="text-lg">
+              <strong>Job Role/Job Position: </strong>
+              {interviewData.jobPosition}
+            </h2>
+            <h2 className="text-lg">
+              <strong>Job Description/Tech Stack: </strong>
+              {interviewData.jobDesc}
+            </h2>
+            <h2 className="text-lg">
+              <strong>Years of Experience: </strong>
+              {interviewData.jobExperience}
+            </h2>
           </div>
-          
-          <div className="p-5 border rounded-lg border-yellow-300 bg-yellow-50 text-yellow-700 flex items-start gap-3">
-            <Lightbulb className="h-6 w-6 mt-1 flex-shrink-0" />
-            <div>
-              <h2 className="font-semibold text-lg">Information</h2>
-              <p className="mt-1 text-sm leading-relaxed">
-                Enable your Web Camera and Microphone to start the AI Mock Interview.
-                It consists of 5 questions generated based on your experience and technology stack.
-                We do NOT store your video, only your voice transcript is analyzed to generate instant AI feedback.
-              </p>
-            </div>
+          <div className="p-5 border rounded-lg border-yellow-300 bg-yellow-100">
+            <h2 className="flex gap-2 items-center text-yellow-500">
+              <Lightbulb />
+              <span>Information</span>
+            </h2>
+            <h2 className="mt-3 text-yellow-500">
+              Enable Video Web Cam and Microphone to Start your AI Generated Mock Interview. 
+              It has 5 questions which you can answer and will provide a report based on your answers. 
+              NOTE: We never record your video. Web cam access can be disabled at any time.
+            </h2>
           </div>
         </div>
-        
-        <div className="flex flex-col items-center justify-center border rounded-lg p-5 bg-gray-50">
+        <div>
           {webCamEnabled ? (
-            <div className="w-full aspect-video rounded-lg overflow-hidden border bg-black flex justify-center items-center">
-              <span className="text-white text-sm">Webcam Enabled</span>
-            </div>
+            <Webcam
+              mirrored={true}
+              style={{ height: 300, width: "auto" }}
+              onUserMedia={() => setWebCamEnabled(true)}
+              onUserMediaError={() => {
+                toast.error("Webcam access error");
+                setWebCamEnabled(false);
+              }}
+            />
           ) : (
-            <div className="w-full flex flex-col items-center justify-center">
-              <Image src="/webcam.png" width={200} height={200} alt="webcam" className="opacity-60" />
-              <Button variant="ghost" className="mt-5 w-full bg-secondary" onClick={() => setWebCamEnabled(true)}>
-                Enable Web Camera and Microphone
+            <>
+              <WebcamIcon className="h-72 my-7 border rounded-lg w-full p-20 bg-secondary" />
+              <Button
+                className="w-full"
+                variant="ghost"
+                onClick={handleWebcamToggle}
+              >
+                Enable Web Cam and Microphone
               </Button>
-            </div>
+            </>
           )}
         </div>
       </div>
-      
-      <div className="flex justify-end mt-10">
-        <Link href={'/dashboard/interview/' + params.interviewId + '/start'}>
-          <Button size="lg">Start Interview</Button>
+      <div className="flex justify-end items-end">
+        <Link href={`/dashboard/interview/${params.interviewId}/start`}>
+          <Button>Start Interview</Button>
         </Link>
       </div>
     </div>
