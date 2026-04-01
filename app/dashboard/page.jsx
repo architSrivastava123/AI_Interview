@@ -9,7 +9,11 @@ import {
   ListChecks,
   Trophy,
   Zap,
-  TrendingUp 
+  TrendingUp,
+  Sparkles,
+  User,
+  History,
+  Activity
 } from "lucide-react";
 
 import AddNewInterview from './_components/AddNewInterview'
@@ -21,19 +25,22 @@ function Dashboard() {
   const [isNewInterviewModalOpen, setIsNewInterviewModalOpen] = useState(false);
   const [statsCards, setStatsCards] = useState([
     {
-      icon: <ListChecks size={32} className="text-indigo-600" />,
-      title: "Total Interviews",
-      value: "0"
+      icon: <ListChecks size={24} className="text-indigo-400 animate-pulse" />,
+      title: "Total Sessions",
+      value: "0",
+      accent: "from-indigo-500/10 to-indigo-500/2"
     },
     {
-      icon: <Trophy size={32} className="text-green-600" />,
-      title: "Best Score",
-      value: "N/A"
+      icon: <Trophy size={24} className="text-emerald-400" />,
+      title: "Best Rating",
+      value: "N/A",
+      accent: "from-emerald-500/10 to-emerald-500/2"
     },
     {
-      icon: <TrendingUp size={32} className="text-blue-600" />,
-      title: "Improvement Rate",
-      value: "0%"
+      icon: <TrendingUp size={24} className="text-cyan-400" />,
+      title: "Skills Boost",
+      value: "0%",
+      accent: "from-cyan-500/10 to-cyan-500/2"
     }
   ]);
 
@@ -107,6 +114,7 @@ function Dashboard() {
       .map(interview => parseInt(interview.rating || '0'))
       .sort((a, b) => a - b);
     
+    if (scores[0] === 0) return 0;
     const improvement = ((scores[scores.length - 1] - scores[0]) / scores[0]) * 100;
     return Math.round(improvement);
   };
@@ -118,72 +126,107 @@ function Dashboard() {
   }, [user]);
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* User Greeting */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 space-y-4 sm:space-y-0">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-3">
-            <Bot className="text-indigo-600" size={32} />
-            Dashboard
-          </h2>
-          <h3 className="text-lg sm:text-xl text-gray-600 mt-2">
-            Welcome, {user?.firstName || 'Interviewer'}
-          </h3>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-gray-500 text-sm sm:text-base">
-            {user?.primaryEmailAddress?.emailAddress || 'Not logged in'}
-          </span>
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#070a13] text-white relative pb-20 pt-8">
+      {/* Decorative Orbs */}
+      <div className="glow-orb animate-glow-slow bg-indigo-500/10 w-[400px] h-[400px] top-10 left-10" />
+      <div className="glow-orb animate-glow-medium bg-purple-500/10 w-[500px] h-[500px] bottom-10 right-10" />
+      
+      {/* Cyber Grid Lines */}
+      <div className="absolute inset-0 cyber-grid opacity-[0.12] pointer-events-none" />
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        {statsCards.map((card) => (
-          <div 
-            key={card.title}
-            className="bg-white p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center"
-          >
-            {card.icon}
-            <div className="ml-4">
-              <p className="text-xs sm:text-sm text-gray-500">{card.title}</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-800">{card.value}</p>
+      <div className="max-w-7xl mx-auto px-6 sm:px-12 relative z-10 space-y-10">
+        
+        {/* User Greeting Panel */}
+        <div className="glass-panel p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-6 border border-white/5 relative overflow-hidden">
+          <div className="flex items-center gap-4 text-center sm:text-left">
+            <div className="p-3.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20">
+              <Bot size={30} />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-3xl font-black text-white tracking-wide">
+                Welcome back, <span className="text-gradient-indigo-purple">{user?.firstName || 'Interviewer'}</span>
+              </h2>
+              <p className="text-gray-400 text-xs sm:text-sm mt-1 font-medium">
+                Refine your skills and mock your way to landing that dream offer.
+              </p>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Interview Section */}
-      <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-6 space-y-4 sm:space-y-0">
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 flex items-center gap-3">
-            <Zap size={24} className="text-yellow-500" />
-            Create AI Mock Interview
-          </h2>
-          <button 
-            onClick={() => setIsNewInterviewModalOpen(true)}
-            className="flex items-center bg-indigo-600 text-white px-4 py-2 rounded-full hover:bg-indigo-700 transition-colors"
-          >
-            <Plus size={20} className="mr-2" />
-            New Interview
-          </button>
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-xs font-semibold text-gray-300">
+            <User size={14} className="text-indigo-400" />
+            {user?.primaryEmailAddress?.emailAddress || 'Authorized Candidate'}
+          </div>
         </div>
 
-        {/* Add New Interview Component */}
-        <div className='grid grid-cols-1 sm:grid-cols-3 gap-6'>
-          <AddNewInterview 
-            isOpen={isNewInterviewModalOpen} 
-            onClose={() => setIsNewInterviewModalOpen(false)} 
-          />
+        {/* Stats Metrics Dashboard Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {statsCards.map((card) => (
+            <div 
+              key={card.title}
+              className={`glass-panel p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-all flex items-center relative overflow-hidden bg-gradient-to-br ${card.accent}`}
+            >
+              <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 mr-4">
+                {card.icon}
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{card.title}</p>
+                <p className="text-2xl sm:text-3xl font-black text-white mt-1">{card.value}</p>
+              </div>
+              <div className="absolute right-4 bottom-4 opacity-10 pointer-events-none">
+                <Activity size={48} className="text-white" />
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
 
-     {/* Interview History */}
-     <div className="mt-8">
-        <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-6">
-          Interview History
-        </h2>
-        <InterviewList interviews={interviewData} />
+        {/* Creator Session Panel */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/5 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-8 pb-6 border-b border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-yellow-500/10 text-yellow-400">
+                <Zap size={22} className="animate-bounce" />
+              </div>
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-white">Create AI Mock Interview</h3>
+                <p className="text-gray-400 text-xs mt-0.5">Generate customized questions matching your specific job positions.</p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setIsNewInterviewModalOpen(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-3 rounded-xl hover:scale-[1.03] shadow-lg shadow-indigo-500/25 text-sm font-bold transition-all"
+            >
+              <Plus size={18} />
+              New Interview
+            </button>
+          </div>
+
+          {/* Add New Interview component inline list holder */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <AddNewInterview 
+              isOpen={isNewInterviewModalOpen} 
+              onClose={() => setIsNewInterviewModalOpen(false)} 
+            />
+          </div>
+        </div>
+
+        {/* History Log Section */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/5">
+          <div className="flex items-center gap-3 mb-8 pb-4 border-b border-white/5">
+            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
+              <History size={20} />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-white">Interview History</h3>
+              <p className="text-gray-400 text-xs mt-0.5">Access grading metrics and technical feedback for your past sessions.</p>
+            </div>
+          </div>
+          
+          <InterviewList interviews={interviewData} />
+        </div>
+
       </div>
     </div>
   );
