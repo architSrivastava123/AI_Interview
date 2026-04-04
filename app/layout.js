@@ -91,15 +91,15 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable}`}
       >
         <body 
-          className={`
+          className="
             antialiased 
             min-h-screen 
             flex 
             flex-col 
-            bg-white 
-            text-gray-900 
+            bg-[#070a13] 
+            text-[#f3f4f6] 
             font-sans
-          `}
+          "
         >
           <a 
             href="#main-content" 
@@ -126,14 +126,16 @@ export default function RootLayout({ children }) {
             id="main-content" 
             className="
               flex-grow 
-              pt-16 
-              sm:pt-20 
+              pt-28 
+              sm:pt-36 
               max-w-7xl 
               mx-auto 
               w-full 
               px-4 
               sm:px-6 
               lg:px-8
+              relative
+              z-10
             "
           >
             {children}

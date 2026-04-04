@@ -1,4 +1,5 @@
 'use client'
+
 import { useState } from 'react'
 import { 
   Users, 
@@ -6,7 +7,8 @@ import {
   Award, 
   Briefcase, 
   BookOpen, 
-  Rocket 
+  Rocket,
+  Sparkles
 } from 'lucide-react'
 
 const AboutUsPage = () => {
@@ -14,29 +16,32 @@ const AboutUsPage = () => {
 
   const tabContent = {
     mission: {
-      icon: <Target className="mr-2 text-indigo-600" />,
+      icon: <Target size={18} />,
+      title: "Our Mission",
       content: (
-        <div className="space-y-4">
-          <p className="text-base md:text-lg">Mock AI is on a mission to revolutionize interview preparation by providing personalized, intelligent AI coaching tailored to individual career aspirations.</p>
-          <p className="text-base md:text-lg">With Mock AI, the goal is to bridge the gap between preparation and success, empowering users to unlock their full potential.</p>
+        <div className="space-y-4 text-gray-300 text-sm leading-relaxed">
+          <p>MockMate AI is dedicated to elevating career opportunities globally by offering highly customized, dynamic mock coaching engines powered by cutting-edge intelligence.</p>
+          <p>We bridge the gaps between learning, assessment, and confidence, ensuring every developer is thoroughly prepared for corporate evaluation criteria.</p>
         </div>
       )
     },
     story: {
-      icon: <BookOpen className="mr-2 text-indigo-600" />,
+      icon: <BookOpen size={18} />,
+      title: "Our Journey",
       content: (
-        <div className="space-y-4">
-          <p className="text-base md:text-lg">The idea for Mock AI was born from firsthand experiences with the challenges of interview preparation. As a solo developer, I wanted to create a platform that simplifies the process and builds confidence in individuals.</p>
-          <p className="text-base md:text-lg">This journey has been a testament to the power of passion and innovation, leading to the creation of an impactful tool for career growth.</p>
+        <div className="space-y-4 text-gray-300 text-sm leading-relaxed">
+          <p>This studio arose from analyzing recruitment bottlenecks. Realizing that peer-to-peer prep is often scheduling-dependent and expensive, we designed an instant AI companion capable of authentic grading and voice recognition.</p>
+          <p>MockMate AI stands as a robust playground enabling thousands of developers to iterate on code explanations and behavioral metrics with zero friction.</p>
         </div>
       )
     },
     approach: {
-      icon: <Rocket className="mr-2 text-indigo-600" />,
+      icon: <Rocket size={18} />,
+      title: "Our Approach",
       content: (
-        <div className="space-y-4">
-          <p className="text-base md:text-lg">Mock AI leverages advanced AI algorithms to generate dynamic, contextually relevant interview questions based on your professional background and goals.</p>
-          <p className="text-base md:text-lg">Through real-time analysis and feedback, the platform provides actionable insights, enabling users to improve with every mock interview attempt.</p>
+        <div className="space-y-4 text-gray-300 text-sm leading-relaxed">
+          <p>By marrying speech-to-text with advanced Gemini evaluation schemas, our system provides precise rating insights, addressing missing microservices, tech terms, and edge-cases directly.</p>
+          <p>We enforce rigorous standards so that candidates gain measurable improvement feedback with every single interview run.</p>
         </div>
       )
     }
@@ -44,77 +49,92 @@ const AboutUsPage = () => {
 
   const coreValues = [
     {
-      icon: <Award className="w-12 h-12 text-indigo-600 mb-4" />,
-      title: "Continuous Learning",
-      description: "Always striving to improve and provide better tools for growth."
+      icon: <Award className="w-8 h-8 text-indigo-400" />,
+      title: "Unyielding Innovation",
+      description: "Pushing limits of LLM integrations to give candidates accurate corporate simulations."
     },
     {
-      icon: <Users className="w-12 h-12 text-indigo-600 mb-4" />,
-      title: "Empowerment",
-      description: "Supporting individuals in building confidence and achieving professional success."
+      icon: <Users className="w-8 h-8 text-purple-400" />,
+      title: "Universal Growth",
+      description: "Providing premium, specialized preparation resources to candidates everywhere."
     },
     {
-      icon: <Briefcase className="w-12 h-12 text-indigo-600 mb-4" />,
-      title: "Excellence",
-      description: "Delivering high-quality, impactful features to simplify interview preparation."
+      icon: <Briefcase className="w-8 h-8 text-pink-400" />,
+      title: "Engineering Pride",
+      description: "Building resilient, fast, and feature-rich interfaces that elevate developer learning."
     }
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 sm:py-12 md:py-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Hero Section */}
-        <div className="text-center mb-8 sm:mb-12 md:mb-16">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900">
-            About Mock AI
+    <div className="min-h-screen bg-[#070a13] text-white relative pb-20 pt-8">
+      {/* Decorative Orbs */}
+      <div className="glow-orb animate-glow-slow bg-indigo-500/10 w-[400px] h-[400px] top-10 left-10" />
+      <div className="glow-orb animate-glow-medium bg-purple-500/10 w-[500px] h-[500px] bottom-10 right-10" />
+      
+      {/* Cyber Grid Lines */}
+      <div className="absolute inset-0 cyber-grid opacity-[0.12] pointer-events-none" />
+
+      <div className="max-w-5xl mx-auto px-6 relative z-10 space-y-12">
+        {/* Header Section */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-400/20 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <Sparkles size={12} />
+            Studio Manifesto
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+            About <span className="text-gradient-indigo-purple">MockMate AI</span>
           </h1>
-          <p className="mt-4 max-w-xl mx-auto text-base sm:text-lg md:text-xl text-gray-600 px-4">
-            Empowering professionals to ace interviews through intelligent, personalized AI coaching
+          <p className="text-gray-400 text-sm sm:text-base max-w-xl mx-auto">
+            Empowering modern engineers to bypass placement hurdles through immersive artificial interview environments.
           </p>
         </div>
 
-        {/* Tabs Section */}
-        <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-8 sm:mb-12 md:mb-16">
-          <div className="flex flex-col sm:flex-row border-b">
-            {Object.keys(tabContent).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`w-full sm:flex-1 py-3 sm:py-4 px-4 sm:px-6 flex items-center justify-center 
-                  ${activeTab === tab 
-                    ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600' 
-                    : 'text-gray-500 hover:bg-gray-100'}`}
-              >
-                {tabContent[tab].icon}
-                <span className="hidden sm:inline">
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </span>
-              </button>
-            ))}
+        {/* Dynamic Tab Panel */}
+        <div className="glass-panel rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
+          <div className="flex border-b border-white/5 p-1 bg-white/5 backdrop-blur-md">
+            {Object.keys(tabContent).map((tab) => {
+              const active = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300
+                    ${active 
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20' 
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  {tabContent[tab].icon}
+                  {tabContent[tab].title}
+                </button>
+              )
+            })}
           </div>
-          <div className="p-4 sm:p-6 md:p-8">
+          <div className="p-6 sm:p-8 min-h-[160px] flex items-center">
             {tabContent[activeTab].content}
           </div>
         </div>
 
-        {/* Values Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 sm:p-8 md:p-12">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center text-gray-900 mb-8 sm:mb-10 md:mb-12">
+        {/* Core Values Section */}
+        <div className="glass-panel p-6 sm:p-10 rounded-3xl border border-white/5">
+          <h2 className="text-2xl font-black text-center text-white tracking-wide mb-8">
             Our Core Values
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {coreValues.map((value, index) => (
               <div 
                 key={index} 
-                className="text-center bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-all duration-300"
+                className="bg-white/5 border border-white/5 p-6 rounded-2xl transition-all duration-300 transform hover:-translate-y-1 group"
               >
-                <div className="flex justify-center">{value.icon}</div>
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3">{value.title}</h3>
-                <p className="text-base text-gray-600">{value.description}</p>
+                <div className="inline-flex p-3 rounded-xl bg-white/5 border border-white/5 mb-4 group-hover:scale-110 transition-transform">
+                  {value.icon}
+                </div>
+                <h3 className="text-base font-bold text-white mb-2">{value.title}</h3>
+                <p className="text-gray-400 text-xs leading-relaxed">{value.description}</p>
               </div>
             ))}
           </div>
         </div>
+
       </div>
     </div>
   )
