@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { chatSession } from "@/utils/GeminiAIModal";
-import { LoaderCircle, Sparkles, Plus, GraduationCap, Code2, Hourglass } from "lucide-react";
+import { LoaderCircle, Sparkles, Plus, GraduationCap, Code2, Hourglass, Bot } from "lucide-react";
 import { MockInterview } from "@/utils/schema";
 import { v4 as uuidv4 } from 'uuid';
 import { db } from "@/utils/db";

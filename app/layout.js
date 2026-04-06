@@ -4,7 +4,6 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { Toaster } from "@/components/ui/sonner";
 import Footer from "./dashboard/_components/Footer";
 import Header from "./dashboard/_components/Header";
-import { OpenGraph } from 'next/dist/lib/metadata/types/opengraph-types';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
