@@ -20,6 +20,8 @@ const RecordAnswerSection = ({
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef(null);
+  const recordingStartTimeRef = useRef(null);
+  const accumulatedDurationRef = useRef(0);
 
   useEffect(() => {
     if (typeof window !== "undefined" && 'webkitSpeechRecognition' in window) {
@@ -65,9 +67,15 @@ const RecordAnswerSection = ({
     }
     if (isRecording) {
       recognitionRef.current.stop();
+      if (recordingStartTimeRef.current) {
+        const elapsed = (Date.now() - recordingStartTimeRef.current) / 1000;
+        accumulatedDurationRef.current += elapsed;
+        recordingStartTimeRef.current = null;
+      }
       toast.info("Recording stopped");
     } else {
       recognitionRef.current.start();
+      recordingStartTimeRef.current = Date.now();
       setIsRecording(true);
       toast.info("Recording started");
     }
@@ -81,6 +89,15 @@ const RecordAnswerSection = ({
     setLoading(true);
 
     try {
+      // In case they click save while still recording, capture final elapsed
+      if (isRecording && recordingStartTimeRef.current) {
+        const elapsed = (Date.now() - recordingStartTimeRef.current) / 1000;
+        accumulatedDurationRef.current += elapsed;
+        recordingStartTimeRef.current = null;
+        recognitionRef.current.stop();
+        setIsRecording(false);
+      }
+
       const feedbackPrompt = "Question: " + mockInterviewQuestion[activeQuestionIndex]?.question + 
         ", User Answer: " + userAnswer + 
         ". Please evaluate this answer based on correctness, technical depth, and industry standards. Provide a numeric rating from 1 to 10 and construct clear, actionable feedback for improvement. Respond strictly in JSON format matching this exact schema: { \"rating\": <number>, \"feedback\": \"<text>\" }. Do not include any extra text, markdown code blocks, backticks, or other formatting.";
@@ -103,11 +120,12 @@ const RecordAnswerSection = ({
         }
       }
 
+      const finalDuration = Math.round(accumulatedDurationRef.current);
       const answerRecord = {
         mockIdRef: interviewData?.mockId,
         question: mockInterviewQuestion[activeQuestionIndex]?.question,
         correctAns: mockInterviewQuestion[activeQuestionIndex]?.answer,
-        userAns: userAnswer,
+        userAns: userAnswer + (finalDuration > 0 ? `|||duration:${finalDuration}` : ""),
         feedback: JsonfeedbackResp?.feedback || "No feedback generated",
         rating: String(JsonfeedbackResp?.rating || "5"),
         userEmail: user?.primaryEmailAddress?.emailAddress,
@@ -117,6 +135,7 @@ const RecordAnswerSection = ({
       await db.insert(UserAnswer).values(answerRecord);
       onAnswerSave?.(answerRecord);
       toast.success("Answer recorded and AI evaluation complete.");
+      accumulatedDurationRef.current = 0;
       setUserAnswer("");
     } catch (error) {
       console.error(error);

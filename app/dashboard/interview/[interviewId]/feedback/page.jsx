@@ -17,10 +17,10 @@ import {
   Sparkles,
   Mic,
   Award,
-  AlertTriangle,
   Flame,
   CornerDownRight,
-  TrendingUp
+  Gauge,
+  Info
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useRouter } from 'next/navigation';
@@ -47,7 +47,6 @@ const analyzeFluency = (text) => {
     }
   });
 
-  // Calculate score: every filler word subtracts 6 points, minimum score is 20
   const score = Math.max(20, 100 - (fillerCount * 6));
   
   return {
@@ -60,9 +59,16 @@ const analyzeFluency = (text) => {
 const Feedback = ({ params }) => {
   const [feedbackList, setFeedbackList] = useState([]);
   const [averageRating, setAverageRating] = useState(null);
+  
+  // Speech Fluency
   const [globalFluency, setGlobalFluency] = useState(100);
   const [globalFillersCount, setGlobalFillersCount] = useState(0);
   const [globalFillersDetails, setGlobalFillersDetails] = useState({});
+  
+  // WPM Pace
+  const [globalWpm, setGlobalWpm] = useState(0);
+  const [globalPaceStatus, setGlobalPaceStatus] = useState("N/A");
+  
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -80,7 +86,7 @@ const Feedback = ({ params }) => {
 
       setFeedbackList(result);
 
-      // Calculate the average rating dynamically
+      // Average Rating
       const validRatings = result
         .map((item) => parseFloat(item.rating))
         .filter((rating) => !isNaN(rating));
@@ -92,24 +98,59 @@ const Feedback = ({ params }) => {
 
       setAverageRating(avgRating);
 
-      // Speech & Fluency Calculations
+      // Fluency & WPM Pace Calculations
       let totalScore = 0;
       let totalFillers = 0;
       const globalDetails = {};
+      
+      let totalRecordedWords = 0;
+      let totalRecordedDuration = 0;
 
       result.forEach(item => {
-        const analysis = analyzeFluency(item.userAns);
+        // Parse answer text and duration metadata
+        const parts = item.userAns ? item.userAns.split("|||") : [""];
+        const answerText = parts[0];
+        let duration = 0;
+        if (parts[1] && parts[1].startsWith("duration:")) {
+          duration = parseInt(parts[1].replace("duration:", ""));
+        }
+
+        const cleanTextForWords = answerText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+        const wordCount = cleanTextForWords.trim().split(/\s+/).filter(w => w.length > 0).length;
+
+        // Fluency Calculations on clean text
+        const analysis = analyzeFluency(answerText);
         totalScore += analysis.score;
         totalFillers += analysis.count;
         Object.entries(analysis.details).forEach(([word, count]) => {
           globalDetails[word] = (globalDetails[word] || 0) + count;
         });
+
+        // WPM calculations
+        if (duration > 0) {
+          totalRecordedWords += wordCount;
+          totalRecordedDuration += duration;
+        }
       });
 
       const avgFluency = result.length > 0 ? Math.round(totalScore / result.length) : 100;
       setGlobalFluency(avgFluency);
       setGlobalFillersCount(totalFillers);
       setGlobalFillersDetails(globalDetails);
+
+      const avgWpm = totalRecordedDuration > 0 
+        ? Math.round((totalRecordedWords / totalRecordedDuration) * 60) 
+        : 0;
+      
+      setGlobalWpm(avgWpm);
+
+      let paceStatus = "Typed Response";
+      if (avgWpm > 0) {
+        if (avgWpm < 110) paceStatus = "Too Slow";
+        else if (avgWpm > 150) paceStatus = "Too Fast";
+        else paceStatus = "Ideal Pace";
+      }
+      setGlobalPaceStatus(paceStatus);
 
     } catch (err) {
       console.error("Error retrieving feedback list:", err);
@@ -126,9 +167,16 @@ const Feedback = ({ params }) => {
   };
 
   const getFluencyFeedback = (score) => {
-    if (score >= 90) return { label: "Excellent Eloquence", desc: "Superb confidence. Your speech is extremely clear and structured.", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" };
-    if (score >= 70) return { label: "Good Communication", desc: "Very steady, though minor pauses or filler words were noticed.", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/20" };
-    return { label: "Hesitations Detected", desc: "Try to slow down, pause silently instead of using verbal filler words.", color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" };
+    if (score >= 90) return { label: "Excellent Eloquence", desc: "Superb confidence. Your speech is extremely clear and structured.", color: "text-emerald-400" };
+    if (score >= 70) return { label: "Good Communication", desc: "Very steady, though minor pauses or filler words were noticed.", color: "text-yellow-400" };
+    return { label: "Hesitations Detected", desc: "Try to slow down, pause silently instead of using verbal filler words.", color: "text-rose-400" };
+  };
+
+  const getPaceFeedback = (wpm, status) => {
+    if (wpm === 0) return { title: "Typed Input", desc: "No voice recordings were captured for pace analysis.", color: "text-gray-400" };
+    if (status === "Ideal Pace") return { title: "Ideal Speed (110-150 WPM)", desc: "Excellent professional speaking speed. Great conversational cadence!", color: "text-emerald-400" };
+    if (status === "Too Fast") return { title: "Rapid Cadence (>150 WPM)", desc: "Speaking too fast may make you sound nervous. Try slowing down.", color: "text-rose-400" };
+    return { title: "Slow Cadence (<110 WPM)", desc: "Speaking too slowly can sound hesitant. Focus on fluid delivery.", color: "text-yellow-400" };
   };
 
   if (loading) {
@@ -144,14 +192,15 @@ const Feedback = ({ params }) => {
   }
 
   const fluencyInfo = getFluencyFeedback(globalFluency);
+  const paceInfo = getPaceFeedback(globalWpm, globalPaceStatus);
 
   return (
     <div className="min-h-screen bg-[#070a13] text-white relative pb-20 pt-8">
-      {/* Decorative Background Glows */}
+      {/* Background Neon glows */}
       <div className="glow-orb animate-glow-slow bg-indigo-500/10 w-[450px] h-[450px] top-10 left-10" />
       <div className="glow-orb animate-glow-medium bg-purple-500/10 w-[450px] h-[450px] bottom-10 right-10" />
       
-      {/* Cyber Grid Overlay */}
+      {/* Cyber Grid overlay */}
       <div className="absolute inset-0 cyber-grid opacity-[0.12] pointer-events-none" />
 
       <div className="max-w-4xl mx-auto px-6 relative z-10 space-y-10">
@@ -191,54 +240,72 @@ const Feedback = ({ params }) => {
             </div>
 
             {/* Performance Analytics Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               {/* Overall Score Card */}
-              <div className="glass-panel p-6 rounded-3xl border border-white/5 flex flex-col justify-between relative overflow-hidden">
+              <div className="glass-panel p-6 rounded-3xl border border-white/5 flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-indigo-500/10 to-indigo-500/0">
                 <div className="absolute right-4 top-4 opacity-5 pointer-events-none">
-                  <Award size={96} className="text-white" />
+                  <Award size={80} className="text-white" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-400 flex items-center gap-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
                     <Target size={12} />
                     Evaluation Rating
                   </span>
-                  <h3 className={`text-4xl sm:text-5xl font-black mt-4 ${getRatingColor(averageRating)}`}>
+                  <h3 className={`text-4xl font-black mt-4 ${getRatingColor(averageRating)}`}>
                     {averageRating ? `${averageRating}` : '0'}<span className="text-lg text-gray-500">/10</span>
                   </h3>
                 </div>
-                <p className="text-gray-400 text-xs mt-6 leading-relaxed">
+                <p className="text-gray-400 text-[10px] mt-6 leading-relaxed">
                   Average grade across all answers. High scoring requires direct domain keywords and architectural design specifics.
                 </p>
               </div>
 
               {/* Speech Fluency Tracker Card */}
-              <div className={`glass-panel p-6 rounded-3xl border border-white/5 flex flex-col justify-between relative overflow-hidden`}>
+              <div className="glass-panel p-6 rounded-3xl border border-white/5 flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-purple-500/10 to-purple-500/0">
                 <div className="absolute right-4 top-4 opacity-5 pointer-events-none">
-                  <Mic size={96} className="text-white" />
+                  <Mic size={80} className="text-white" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-purple-400 flex items-center gap-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
                     <Mic size={12} />
                     Speech Analytics
                   </span>
-                  <div className="flex items-baseline mt-4 gap-3">
-                    <h3 className="text-4xl sm:text-5xl font-black text-purple-400">
-                      {globalFluency}%
-                    </h3>
-                    <span className="text-xs text-gray-400 font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300">
-                      Fluency
-                    </span>
-                  </div>
+                  <h3 className="text-4xl font-black text-purple-400 mt-4">
+                    {globalFluency}%
+                  </h3>
                 </div>
-
-                <div className="mt-6 space-y-2">
-                  <div className="text-xs font-bold text-white flex justify-between">
+                <div className="mt-6 space-y-1">
+                  <div className="text-[11px] font-bold text-white flex justify-between">
                     <span>{fluencyInfo.label}</span>
-                    <span className="text-gray-400">Detected: {globalFillersCount} filler(s)</span>
+                    <span className="text-purple-400">{globalFillersCount} fillers</span>
                   </div>
-                  <p className="text-gray-400 text-[11px] leading-relaxed">
+                  <p className="text-gray-400 text-[10px] leading-relaxed">
                     {fluencyInfo.desc}
+                  </p>
+                </div>
+              </div>
+
+              {/* Words-Per-Minute Speaking Pace Meter */}
+              <div className="glass-panel p-6 rounded-3xl border border-white/5 flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-cyan-500/10 to-cyan-500/0">
+                <div className="absolute right-4 top-4 opacity-5 pointer-events-none">
+                  <Gauge size={80} className="text-white" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
+                    <Gauge size={12} />
+                    Speaking Pace
+                  </span>
+                  <h3 className={`text-4xl font-black mt-4 ${paceInfo.color}`}>
+                    {globalWpm > 0 ? `${globalWpm}` : 'N/A'}<span className="text-lg text-gray-500">{globalWpm > 0 ? ' WPM' : ''}</span>
+                  </h3>
+                </div>
+                <div className="mt-6 space-y-1">
+                  <div className="text-[11px] font-bold text-white flex justify-between">
+                    <span>{paceInfo.title}</span>
+                  </div>
+                  <p className="text-gray-400 text-[10px] leading-relaxed">
+                    {paceInfo.desc}
                   </p>
                 </div>
               </div>
@@ -275,12 +342,35 @@ const Feedback = ({ params }) => {
                   Detailed Answer Review
                 </h3>
                 <p className="text-gray-400 text-xs mt-0.5">
-                  Expand each interview item to examine the speech analytics, correct criteria, and AI grading.
+                  Expand each interview item to examine the speech speed, stutters, correct answers, and AI feedback.
                 </p>
               </div>
 
               {feedbackList.map((item, index) => {
-                const questionFluency = analyzeFluency(item.userAns);
+                // Parse WPM and duration metadata
+                const parts = item.userAns ? item.userAns.split("|||") : [""];
+                const answerText = parts[0];
+                let duration = 0;
+                if (parts[1] && parts[1].startsWith("duration:")) {
+                  duration = parseInt(parts[1].replace("duration:", ""));
+                }
+
+                const cleanText = answerText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                const wordCount = cleanText.trim().split(/\s+/).filter(w => w.length > 0).length;
+
+                // Fluency score
+                const questionFluency = analyzeFluency(answerText);
+                
+                // WPM Pace
+                const qWpm = duration > 0 ? Math.round((wordCount / duration) * 60) : 0;
+                let qPaceStatus = "Typed Response";
+                if (qWpm > 0) {
+                  if (qWpm < 110) qPaceStatus = "Too Slow";
+                  else if (qWpm > 150) qPaceStatus = "Too Fast";
+                  else qPaceStatus = "Ideal Pace";
+                }
+                const qPaceInfo = getPaceFeedback(qWpm, qPaceStatus);
+
                 const isHighRating = parseFloat(item.rating) >= 7;
                 const isMediumRating = parseFloat(item.rating) >= 4;
 
@@ -326,7 +416,7 @@ const Feedback = ({ params }) => {
                             Your Response
                           </label>
                           <div className="bg-rose-500/5 p-4 rounded-2xl text-xs sm:text-sm text-gray-300 border border-rose-500/10 leading-relaxed min-h-[100px]">
-                            {item.userAns || "No response transcribed."}
+                            {answerText || "No response transcribed."}
                           </div>
                         </div>
 
@@ -344,31 +434,58 @@ const Feedback = ({ params }) => {
                       </div>
 
                       {/* Question Speech Analytics Tracker Panel */}
-                      <div className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/10 space-y-2">
-                        <div className="flex justify-between items-center">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-purple-500/5 border border-purple-500/10">
+                        
+                        {/* Hesitation stutters */}
+                        <div className="space-y-1.5 border-r border-white/5 pr-4">
                           <span className="text-[10px] font-extrabold uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
                             <Mic size={12} />
-                            Spoken Hesitation Analytics
+                            Speech Hesitations
                           </span>
-                          <span className="text-xs font-black text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-                            Fluency Score: {questionFluency.score}%
+                          {questionFluency.count > 0 ? (
+                            <p className="text-gray-400 text-xs leading-relaxed flex items-center gap-1.5 flex-wrap">
+                              <CornerDownRight size={13} className="text-purple-400 shrink-0" />
+                              Detected <span className="text-rose-400 font-extrabold">{questionFluency.count} fillers</span>: 
+                              {Object.entries(questionFluency.details).map(([w, c]) => (
+                                <span key={w} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] font-bold text-gray-300">
+                                  "{w}" ({c}x)
+                                </span>
+                              ))}
+                            </p>
+                          ) : (
+                            <p className="text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
+                              🌟 Flawless speech patterns. Zero fillers detected!
+                            </p>
+                          )}
+                          <span className="inline-block mt-2 text-[10px] font-black text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                            Fluency: {questionFluency.score}%
                           </span>
                         </div>
-                        {questionFluency.count > 0 ? (
-                          <p className="text-gray-400 text-xs leading-relaxed flex items-center gap-1.5 flex-wrap">
-                            <CornerDownRight size={14} className="text-purple-400 shrink-0" />
-                            Detected <span className="text-rose-400 font-extrabold">{questionFluency.count} filler word(s)</span>: 
-                            {Object.entries(questionFluency.details).map(([w, c]) => (
-                              <span key={w} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-[10px] font-bold text-gray-300">
-                                "{w}" ({c}x)
-                              </span>
-                            ))}
-                          </p>
-                        ) : (
-                          <p className="text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
-                            🌟 Flawless speech pattern! Zero verbal fillers or hesitations detected.
-                          </p>
-                        )}
+
+                        {/* Speaking Pace speed WPM */}
+                        <div className="space-y-1.5 pl-0 sm:pl-2">
+                          <span className="text-[10px] font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
+                            <Gauge size={12} />
+                            Speaking Pace (WPM)
+                          </span>
+                          {qWpm > 0 ? (
+                            <div className="space-y-1">
+                              <p className="text-gray-300 text-xs flex items-center gap-1">
+                                <CornerDownRight size={13} className="text-cyan-400 shrink-0" />
+                                Speed rate: <span className={`font-black ${qPaceInfo.color}`}>{qWpm} WPM</span> ({qPaceStatus})
+                              </p>
+                              <p className="text-gray-400 text-[10px] leading-relaxed">
+                                {duration}s talk-time / {wordCount} words spoken.
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-gray-400 text-xs flex items-center gap-1.5">
+                              <Info size={13} />
+                              Typed answer (Speed metrics unavailable).
+                            </p>
+                          )}
+                        </div>
+
                       </div>
 
                       {/* AI Detailed Feedback Panel */}
