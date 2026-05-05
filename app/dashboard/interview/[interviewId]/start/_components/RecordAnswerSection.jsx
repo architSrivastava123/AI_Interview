@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import React, { useEffect, useState, useRef } from "react";
-import { Mic, StopCircle, Loader2, Camera, CameraOff } from "lucide-react";
+import { Mic, StopCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { chatSession } from "@/utils/GeminiAIModal";
 import { db } from "@/utils/db";
@@ -19,9 +19,7 @@ const RecordAnswerSection = ({
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [webcamEnabled, setWebcamEnabled] = useState(false);
   const recognitionRef = useRef(null);
-  const webcamRef = useRef(null);
 
   useEffect(() => {
     if (typeof window !== "undefined" && 'webkitSpeechRecognition' in window) {
@@ -53,30 +51,12 @@ const RecordAnswerSection = ({
       };
     }
 
-    // Fix: Clean up speech recognition on unmount to prevent audio state memory leaks
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
     };
   }, []);
-
-  const EnableWebcam = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (webcamRef.current) webcamRef.current.srcObject = stream;
-      setWebcamEnabled(true);
-      toast.success("Webcam enabled");
-    } catch (error) {
-      toast.error("Failed to enable webcam");
-    }
-  };
-
-  const DisableWebcam = () => {
-    const tracks = webcamRef.current?.srcObject?.getTracks();
-    tracks?.forEach(track => track.stop());
-    setWebcamEnabled(false);
-  };
 
   const StartStopRecording = () => {
     if (!recognitionRef.current) {
@@ -94,71 +74,81 @@ const RecordAnswerSection = ({
   };
 
   const UpdateUserAnswer = async () => {
-    if (!userAnswer.trim()) {
-      toast.error("Please provide an answer");
+    if (!userAnswer.trim() || userAnswer.split(" ").length < 4) {
+      toast.warning("Please provide a substantial answer of at least 4 words.");
       return;
     }
     setLoading(true);
 
     try {
-      const feedbackPrompt = "Question: " + mockInterviewQuestion[activeQuestionIndex]?.question + ", User Answer: " + userAnswer + ". Please give a rating out of 10 and feedback on improvement in JSON format { \\\"rating\\\": <number>, \\\"feedback\\\": <text> }";
+      const feedbackPrompt = "Question: " + mockInterviewQuestion[activeQuestionIndex]?.question + 
+        ", User Answer: " + userAnswer + 
+        ". Please evaluate this answer based on correctness, technical depth, and industry standards. Provide a numeric rating from 1 to 10 and construct clear, actionable feedback for improvement. Respond strictly in JSON format matching this exact schema: { \"rating\": <number>, \"feedback\": \"<text>\" }. Do not include any extra text, markdown code blocks, backticks, or other formatting.";
       
       const result = await chatSession.sendMessage(feedbackPrompt);
-      const mockJsonResp = result.response.text().replace("`" + "`" + "\`json", "").replace("`" + "`" + "\`" , "").trim();
-      const JsonfeedbackResp = JSON.parse(mockJsonResp);
+      const rawText = result.response.text();
+      
+      // Clean up markdown block wraps if returned despite instruction
+      const cleaned = rawText.replace(/```json|```/gi, "").trim();
+      let JsonfeedbackResp;
+      try {
+        JsonfeedbackResp = JSON.parse(cleaned);
+      } catch (parseErr) {
+        // Fallback robust regex extract if AI wraps in text
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        if (match) {
+          JsonfeedbackResp = JSON.parse(match[0]);
+        } else {
+          throw new Error("Unable to parse structured JSON response");
+        }
+      }
 
       const answerRecord = {
         mockIdRef: interviewData?.mockId,
         question: mockInterviewQuestion[activeQuestionIndex]?.question,
         correctAns: mockInterviewQuestion[activeQuestionIndex]?.answer,
         userAns: userAnswer,
-        feedback: JsonfeedbackResp?.feedback,
-        rating: JsonfeedbackResp?.rating,
+        feedback: JsonfeedbackResp?.feedback || "No feedback generated",
+        rating: String(JsonfeedbackResp?.rating || "5"),
         userEmail: user?.primaryEmailAddress?.emailAddress,
         createdAt: moment().format("DD-MM-YYYY"),
       };
 
       await db.insert(UserAnswer).values(answerRecord);
       onAnswerSave?.(answerRecord);
-      toast.success("Answer recorded successfully");
+      toast.success("Answer recorded and AI evaluation complete.");
       setUserAnswer("");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save answer");
+      toast.error("Failed to complete AI grading. Please try saving again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center flex-col relative">
-      <div className="flex flex-col my-20 justify-center items-center bg-black rounded-lg p-5">
-        {webcamEnabled ? (
-          <video ref={webcamRef} autoPlay playsInline className="w-[200px] h-[200px] object-cover rounded-lg" />
-        ) : (
-          <div className="w-[200px] h-[200px] flex justify-center items-center bg-gray-200 rounded-lg">
-            <p className="text-gray-500">Webcam Disabled</p>
-          </div>
-        )}
-        <Button variant="outline" className="mt-4" onClick={webcamEnabled ? DisableWebcam : EnableWebcam}>
-          {webcamEnabled ? "Disable Webcam" : "Enable Webcam"}
+    <div className="flex justify-center items-center flex-col relative w-full">
+      <div className="w-full max-w-xl flex flex-col items-center">
+        <Button 
+          disabled={loading} 
+          variant={isRecording ? "destructive" : "outline"} 
+          className="my-10 h-16 w-16 rounded-full flex items-center justify-center shadow-lg" 
+          onClick={StartStopRecording}
+        >
+          {isRecording ? <StopCircle className="h-8 w-8 text-white" /> : <Mic className="h-8 w-8" />}
+        </Button>
+
+        <textarea
+          className="w-full h-40 p-4 border rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-inner"
+          placeholder="Your speech transcript will populate here. Feel free to refine or type directly..."
+          value={userAnswer}
+          onChange={(e) => setUserAnswer(e.target.value)}
+        />
+      
+        <Button className="mt-6 w-full" onClick={UpdateUserAnswer} disabled={loading || !userAnswer.trim()}>
+          {loading ? "Analyzing and Grading..." : "Save Answer"}
         </Button>
       </div>
-
-      <Button disabled={loading} variant="outline" className="my-10" onClick={StartStopRecording}>
-        {isRecording ? "Stop Recording" : "Record Answer"}
-      </Button>
-
-      <textarea
-        className="w-full h-32 p-4 mt-4 border rounded-md text-gray-800"
-        placeholder="Your answer will appear here..."
-        value={userAnswer}
-        onChange={(e) => setUserAnswer(e.target.value)}
-      />
-    
-      <Button className="mt-4" onClick={UpdateUserAnswer} disabled={loading || !userAnswer.trim()}>
-        Save Answer
-      </Button>
     </div>
   );
 };
