@@ -8,8 +8,6 @@ import {
   Video, 
   VideoOff, 
   Sparkles, 
-  Eye, 
-  EyeOff, 
   Volume2 
 } from "lucide-react";
 import { toast } from "sonner";
@@ -37,6 +35,7 @@ const RecordAnswerSection = ({
   
   // Real-Time Captions state
   const [liveCaption, setLiveCaption] = useState("");
+  const [wpm, setWpm] = useState(0);
 
   const recognitionRef = useRef(null);
   const recordingStartTimeRef = useRef(null);
@@ -46,6 +45,14 @@ const RecordAnswerSection = ({
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
 
+  // Audio Context References for Pitch & Decibel Visualizer
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const sourceRef = useRef(null);
+  const dataArrayRef = useRef(null);
+  const audioCanvasRef = useRef(null);
+  const audioRequestRef = useRef(null);
+
   // HTML5 Real-Time Canvas Video Frame Render Loop (Vignette Portrait Blur)
   const drawFrame = () => {
     if (webcamRef.current && webcamRef.current.video && canvasRef.current) {
@@ -54,20 +61,16 @@ const RecordAnswerSection = ({
       const ctx = canvas.getContext('2d');
       
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        // Match canvas dimensions to the incoming video feed
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         if (isBlurActive) {
-          // Draw 1st layer: Completely blurred environment background
           ctx.save();
           ctx.filter = 'blur(16px)';
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           ctx.restore();
           
-          // Draw 2nd layer: Clean candidate portrait using a soft feathered oval mask
           ctx.save();
           ctx.beginPath();
           const centerX = canvas.width / 2;
@@ -80,7 +83,6 @@ const RecordAnswerSection = ({
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           ctx.restore();
         } else {
-          // Regular sharp stream
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
       }
@@ -103,6 +105,59 @@ const RecordAnswerSection = ({
     };
   }, [webCamEnabled, isBlurActive]);
 
+  // Audio Wave Painter
+  const startAudioVisualizer = (stream) => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+
+      audioContextRef.current = new AudioCtx();
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 128;
+      
+      sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
+      sourceRef.current.connect(analyserRef.current);
+      
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      dataArrayRef.current = new Uint8Array(bufferLength);
+      
+      const drawAudio = () => {
+        if (!audioCanvasRef.current) return;
+        const canvas = audioCanvasRef.current;
+        const ctx = canvas.getContext('2d');
+        
+        // Double resolution for smooth graphics
+        canvas.width = canvas.parentElement.clientWidth * 2;
+        canvas.height = 80;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+        
+        const barWidth = (canvas.width / bufferLength) * 1.5;
+        let barHeight;
+        let x = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+          barHeight = dataArrayRef.current[i] * 0.28;
+          
+          const grad = ctx.createLinearGradient(0, canvas.height, 0, 0);
+          grad.addColorStop(0, '#6366f1');
+          grad.addColorStop(0.5, '#8b5cf6');
+          grad.addColorStop(1, '#ec4899');
+          ctx.fillStyle = grad;
+          
+          ctx.fillRect(x, canvas.height - barHeight, barWidth - 4, barHeight);
+          x += barWidth;
+        }
+        audioRequestRef.current = requestAnimationFrame(drawAudio);
+      };
+      
+      drawAudio();
+    } catch (e) {
+      console.warn("Vocal analyzer failed to start", e);
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined" && 'webkitSpeechRecognition' in window) {
       recognitionRef.current = new window.webkitSpeechRecognition();
@@ -122,16 +177,24 @@ const RecordAnswerSection = ({
           }
         }
 
-        // Pipe active tokens directly into the floating overlay captions state
         if (interimTranscript) {
           setLiveCaption(interimTranscript);
         } else if (finalTranscript) {
           setLiveCaption(finalTranscript);
         }
 
+        const currentAnswer = (userAnswer + ' ' + finalTranscript).trim();
         if (finalTranscript.trim()) {
           setUserAnswer(prev => (prev + ' ' + finalTranscript).trim());
         }
+
+        // Real-time Speaking Pace speed tracking (WPM)
+        const words = currentAnswer.split(/\s+/).filter(w => w.length > 0).length;
+        const elapsed = recordingStartTimeRef.current
+          ? (Date.now() - recordingStartTimeRef.current) / 1000
+          : 0;
+        const computedWPM = elapsed > 2 ? Math.round((words / elapsed) * 60) : 0;
+        setWpm(computedWPM);
       };
 
       recognition.onerror = (event) => {
@@ -148,6 +211,7 @@ const RecordAnswerSection = ({
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      if (audioRequestRef.current) cancelAnimationFrame(audioRequestRef.current);
     };
   }, []);
 
@@ -163,6 +227,12 @@ const RecordAnswerSection = ({
         accumulatedDurationRef.current += elapsed;
         recordingStartTimeRef.current = null;
       }
+      
+      // Clean up audio context monitor
+      if (audioRequestRef.current) cancelAnimationFrame(audioRequestRef.current);
+      if (sourceRef.current) sourceRef.current.disconnect();
+      if (audioContextRef.current) audioContextRef.current.close();
+
       setLiveCaption("");
       toast.info("Recording stopped");
     } else {
@@ -170,6 +240,16 @@ const RecordAnswerSection = ({
       recordingStartTimeRef.current = Date.now();
       setIsRecording(true);
       setLiveCaption("Listening... speak clearly into your microphone.");
+      
+      // Start microphone frequency monitor stream
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          startAudioVisualizer(stream);
+        })
+        .catch(err => {
+          console.warn("Pitch and decibel monitor not active:", err);
+        });
+
       toast.info("Recording started");
     }
   };
@@ -206,6 +286,11 @@ const RecordAnswerSection = ({
         recognitionRef.current.stop();
         setIsRecording(false);
       }
+
+      // Cleanup visualizer
+      if (audioRequestRef.current) cancelAnimationFrame(audioRequestRef.current);
+      if (sourceRef.current) sourceRef.current.disconnect();
+      if (audioContextRef.current) audioContextRef.current.close();
 
       const feedbackPrompt = "Question: " + mockInterviewQuestion[activeQuestionIndex]?.question + 
         ", User Answer: " + userAnswer + 
@@ -256,10 +341,9 @@ const RecordAnswerSection = ({
   return (
     <div className="flex justify-center items-center flex-col relative w-full space-y-6">
       
-      {/* 1. Camera Studio Box */}
+      {/* Camera Studio Box */}
       <div className="w-full max-w-xl glass-panel p-4 rounded-3xl border border-white/5 relative overflow-hidden flex flex-col items-center">
         
-        {/* Hidden active Webcam feeding raw frame pixels to canvas */}
         {webCamEnabled && (
           <Webcam
             ref={webcamRef}
@@ -276,10 +360,8 @@ const RecordAnswerSection = ({
         <div className="w-full aspect-[4/3] rounded-2xl bg-[#090d16] border border-white/5 relative overflow-hidden flex items-center justify-center">
           
           {webCamEnabled ? (
-            /* Live Dynamic Canvas (Applies real-time portrait blur) */
             <canvas ref={canvasRef} className="w-full h-full object-cover rounded-2xl" />
           ) : (
-            /* Camera Off Placeholder */
             <div className="text-center space-y-3 z-10 px-6">
               <div className="p-4 rounded-full bg-white/[0.02] border border-white/5 inline-block text-gray-500">
                 <VideoOff size={32} />
@@ -294,7 +376,7 @@ const RecordAnswerSection = ({
           {/* Cyber Overlay Grid lines */}
           <div className="absolute inset-0 cyber-grid opacity-[0.05] pointer-events-none" />
 
-          {/* 3. Real-Time Floating Transcription Captions Overlay */}
+          {/* Real-Time Floating Transcription Captions Overlay */}
           {isRecording && liveCaption && (
             <div className="absolute bottom-4 left-4 right-4 bg-[#070a13]/85 backdrop-blur-md border border-white/10 px-4 py-2.5 rounded-xl text-center z-20 shadow-xl transition-all duration-300">
               <p className="text-white text-[11px] sm:text-xs font-semibold tracking-wide flex items-center justify-center gap-2">
@@ -306,7 +388,7 @@ const RecordAnswerSection = ({
 
         </div>
 
-        {/* 2. Webcam Controller Utility Bar */}
+        {/* Webcam Controller Utility Bar */}
         <div className="w-full flex items-center justify-between mt-4 border-t border-white/5 pt-3.5">
           <Button
             variant="ghost"
@@ -345,7 +427,7 @@ const RecordAnswerSection = ({
 
       </div>
 
-      {/* 4. Speech Recording controls */}
+      {/* Speech Recording controls */}
       <div className="w-full max-w-xl flex flex-col items-center">
         
         <Button 
@@ -364,6 +446,41 @@ const RecordAnswerSection = ({
             <Mic className="h-8 w-8" />
           )}
         </Button>
+
+        {/* Real-time Pitch Visualizer Canvas Block */}
+        {isRecording && (
+          <div className="w-full mt-6 flex flex-col items-center space-y-2 animate-fade-in relative z-10">
+            <span className="text-[10px] font-black tracking-widest text-indigo-400 uppercase flex items-center gap-1.5">
+              <Volume2 size={11} className="animate-pulse" /> Live Pitch & Frequency Monitor
+            </span>
+            <canvas ref={audioCanvasRef} className="w-full h-[40px] bg-[#070a13]/60 rounded-2xl border border-white/5" />
+            
+            <div className="flex justify-between w-full text-[9px] font-bold text-gray-500 px-1 mt-1">
+              <span>Speech Pace: <strong className={wpm > 150 ? "text-rose-400 animate-pulse" : "text-indigo-400"}>{wpm} WPM</strong></span>
+              <span>Target Professional Pace: 110-150 WPM</span>
+            </div>
+
+            {/* Dynamic Breathing Regulation Circle */}
+            {wpm > 150 && (
+              <div className="w-full p-4 mt-3 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 flex items-center gap-4 animate-bounce relative z-10">
+                <div className="relative shrink-0 flex items-center justify-center">
+                  <span className="absolute w-10 h-10 bg-indigo-400/20 rounded-full animate-ping" style={{ animationDuration: '3s' }} />
+                  <span className="absolute w-8 h-8 bg-indigo-400/40 rounded-full animate-pulse" style={{ animationDuration: '1.5s' }} />
+                  <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold">
+                    🧘
+                  </div>
+                </div>
+                <div className="space-y-0.5 text-left">
+                  <h5 className="text-xs font-black text-white tracking-wide uppercase">Breath Regulation Active</h5>
+                  <p className="text-gray-400 text-[10px] leading-relaxed">
+                    Speaking at {wpm} WPM (above professional sweet spot). Slow down, inhale... exhale... keep pacing balanced.
+                  </p>
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
 
         <textarea
           className="w-full h-32 p-4 mt-8 glass-panel border border-white/5 rounded-2xl text-xs sm:text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 shadow-inner bg-[#0b0f19]/30 leading-relaxed resize-none"
