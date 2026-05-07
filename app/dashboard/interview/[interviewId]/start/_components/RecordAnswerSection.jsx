@@ -45,7 +45,7 @@ const RecordAnswerSection = ({
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
 
-  // Audio Context References for Pitch & Decibel Visualizer
+  // Feature 2: Audio Context References for Pitch & Decibel Visualizer
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const sourceRef = useRef(null);
