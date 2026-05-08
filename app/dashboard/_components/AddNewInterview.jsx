@@ -11,7 +11,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { chatSession } from "@/utils/GeminiAIModal";
-import { LoaderCircle, Sparkles, Plus, GraduationCap, Code2, Hourglass, Bot } from "lucide-react";
+import { 
+  LoaderCircle, 
+  Sparkles, 
+  Plus, 
+  GraduationCap, 
+  Code2, 
+  Hourglass, 
+  Bot,
+  UploadCloud,
+  FileText,
+  X
+} from "lucide-react";
 import { MockInterview } from "@/utils/schema";
 import { v4 as uuidv4 } from 'uuid';
 import { db } from "@/utils/db";
@@ -57,6 +68,52 @@ const TECH_STACK_SUGGESTIONS = {
   'UI/UX Designer': 'Figma, Sketch, Adobe XD, InVision'
 };
 
+const extractTextFromPDF = async (file) => {
+  return new Promise((resolve, reject) => {
+    const fileReader = new FileReader();
+    fileReader.onload = async function() {
+      try {
+        const typedarray = new Uint8Array(this.result);
+        
+        if (typeof window === "undefined") {
+          resolve("");
+          return;
+        }
+        
+        // Load PDF.js dynamically to bypass compilation worker bugs
+        if (!window.pdfjsLib) {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+          document.head.appendChild(script);
+          
+          await new Promise((res) => {
+            script.onload = () => {
+              window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+              res();
+            };
+          });
+        }
+        
+        const pdf = await window.pdfjsLib.getDocument({ data: typedarray }).promise;
+        let fullText = "";
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(" ");
+          fullText += pageText + "\n";
+        }
+        
+        resolve(fullText);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    fileReader.onerror = (err) => reject(err);
+    fileReader.readAsArrayBuffer(file);
+  });
+};
+
 function AddNewInterview() {
   const [openDialog, setOpenDialog] = useState(false);
   const [interviewTrack, setInterviewTrack] = useState(INTERVIEW_TRACKS[0]);
@@ -64,6 +121,12 @@ function AddNewInterview() {
   const [jobDescription, setJobDescription] = useState("");
   const [jobExperience, setJobExperience] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // PDF Resume tailoring states
+  const [resumeSummary, setResumeSummary] = useState("");
+  const [parsingResume, setParsingResume] = useState(false);
+  const [fileName, setFileName] = useState("");
+
   const { user } = useUser();
   const router = useRouter();
 
@@ -75,12 +138,54 @@ function AddNewInterview() {
     }
   };
 
+  const handleResumeUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (file.type !== "application/pdf") {
+      toast.error("Please upload a valid PDF resume.");
+      return;
+    }
+
+    setParsingResume(true);
+    setFileName(file.name);
+    
+    try {
+      const extractedText = await extractTextFromPDF(file);
+      if (!extractedText.trim()) {
+        throw new Error("Unable to extract text layers from PDF resume.");
+      }
+
+      // Summarize resume context using Gemini AI
+      const summaryPrompt = `Please summarize the following candidate resume, highlighting their key software projects, tech stacks, and career accomplishments. Keep it extremely concise (under 120 words) and high impact: \n\n${extractedText}`;
+      const result = await chatSession.sendMessage(summaryPrompt);
+      const summaryText = (await result.response.text()).trim();
+      
+      setResumeSummary(summaryText);
+      toast.success("Resume processed! AI will now generate custom questions for your projects.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to parse resume. Please ensure it is a text-based PDF.");
+      setFileName("");
+      setResumeSummary("");
+    } finally {
+      setParsingResume(false);
+    }
+  };
+
+  const clearResume = () => {
+    setFileName("");
+    setResumeSummary("");
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
   
+    // Inject resume summary context directly to prompt
     const inputPrompt = `Interview track: ${interviewTrack}. Job position: ${jobPosition}, Job Description: ${jobDescription}, Years of Experience: ${jobExperience}.
-    Generate 5 interview questions and answers in JSON format.`;
+    ${resumeSummary ? `Candidate Resume Highlights & Projects: ${resumeSummary}.` : ""}
+    Generate 5 interview questions and answers in JSON format. ${resumeSummary ? "Ensure that at least 2-3 of these questions directly target the candidate's resume projects and highlights to evaluate their hands-on engineering experience." : ""}`;
   
     try {
       const result = await chatSession.sendMessage(inputPrompt);
@@ -94,7 +199,8 @@ function AddNewInterview() {
           mockId: uuidv4(),
           jsonMockResp: JSON.stringify(mockResponse),
           jobPosition: jobPosition,
-          jobDesc: jobDescription,
+          // Persist resume summary into Neon DB by appending it
+          jobDesc: jobDescription + (resumeSummary ? `|||resume:${resumeSummary}` : ""),
           jobExperience: jobExperience,
           interviewTrack: interviewTrack,
           createdBy: user?.primaryEmailAddress?.emailAddress,
@@ -130,7 +236,7 @@ function AddNewInterview() {
       </div>
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="max-w-2xl bg-[#0b0f19]/95 backdrop-blur-2xl border border-white/10 text-white rounded-3xl p-6 sm:p-8">
+        <DialogContent className="max-w-2xl bg-[#0b0f19]/95 backdrop-blur-2xl border border-white/10 text-white rounded-3xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-extrabold text-2xl tracking-wide flex items-center gap-2">
               <Sparkles className="text-indigo-400 animate-pulse" size={24} />
@@ -144,6 +250,67 @@ function AddNewInterview() {
           <form onSubmit={onSubmit} className="space-y-6 mt-6">
             <div className="space-y-4">
               
+              {/* Optional PDF Resume Uploader */}
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                  <FileText size={12} />
+                  Upload PDF Resume (Optional - Tailors Questions to your projects!)
+                </label>
+                
+                {fileName ? (
+                  /* Uploaded File Pill Indicator */
+                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} className="text-indigo-400" />
+                      <span className="font-bold truncate max-w-[250px]">{fileName}</span>
+                      <span className="text-[9px] bg-indigo-500/20 px-2 py-0.5 rounded border border-indigo-500/30 text-indigo-400 font-extrabold uppercase tracking-wider">
+                        Tailoring Enabled
+                      </span>
+                    </div>
+                    <Button 
+                      type="button" 
+                      onClick={clearResume}
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 rounded-lg text-indigo-400 hover:bg-rose-500/20 hover:text-rose-400"
+                    >
+                      <X size={14} />
+                    </Button>
+                  </div>
+                ) : (
+                  /* Empty Uploader Card */
+                  <label className="w-full h-24 rounded-xl border border-dashed border-white/10 bg-slate-950/40 flex flex-col items-center justify-center cursor-pointer hover:bg-white/[0.02] hover:border-indigo-500/40 transition-all p-4">
+                    {parsingResume ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <LoaderCircle className="animate-spin text-indigo-400 h-6 w-6" />
+                        <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Extracting projects and achievements...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5">
+                        <UploadCloud size={22} className="text-gray-500" />
+                        <span className="text-gray-400 text-xs font-semibold">Drop or Upload your text PDF resume</span>
+                        <span className="text-gray-600 text-[9px] uppercase font-bold tracking-wider">ATS questions will be customized</span>
+                      </div>
+                    )}
+                    <input 
+                      type="file" 
+                      accept="application/pdf" 
+                      className="hidden" 
+                      disabled={parsingResume} 
+                      onChange={handleResumeUpload} 
+                    />
+                  </label>
+                )}
+
+                {/* Display extracted Resume summary capsule */}
+                {resumeSummary && (
+                  <div className="p-3.5 rounded-xl bg-purple-500/5 border border-purple-500/10 text-[11px] text-gray-400 leading-relaxed max-h-[85px] overflow-y-auto">
+                    <span className="font-extrabold text-[9px] uppercase tracking-widest text-purple-400 block mb-1">Resume summary generated:</span>
+                    "{resumeSummary}"
+                  </div>
+                )}
+              </div>
+
               {/* Interview Track */}
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
