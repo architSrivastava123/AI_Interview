@@ -21,7 +21,10 @@ import {
   Bot,
   UploadCloud,
   FileText,
-  X
+  X,
+  Target,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 import { MockInterview } from "@/utils/schema";
 import { v4 as uuidv4 } from 'uuid';
@@ -68,6 +71,13 @@ const TECH_STACK_SUGGESTIONS = {
   'UI/UX Designer': 'Figma, Sketch, Adobe XD, InVision'
 };
 
+const CULTURAL_FRAMEWORKS = [
+  { id: 'standard', name: 'Standard Technical & Behavioral' },
+  { id: 'amazon', name: 'Amazon Leadership Principles' },
+  { id: 'netflix', name: 'Netflix Freedom & Responsibility' },
+  { id: 'google', name: 'Google Googlyness Culture Fit' }
+];
+
 const extractTextFromPDF = async (file) => {
   return new Promise((resolve, reject) => {
     const fileReader = new FileReader();
@@ -80,7 +90,6 @@ const extractTextFromPDF = async (file) => {
           return;
         }
         
-        // Load PDF.js dynamically to bypass compilation worker bugs
         if (!window.pdfjsLib) {
           const script = document.createElement('script');
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
@@ -122,10 +131,16 @@ function AddNewInterview() {
   const [jobExperience, setJobExperience] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // PDF Resume tailoring states
+  // Feature 6: PDF Resume tailoring and ATS scanner states
   const [resumeSummary, setResumeSummary] = useState("");
   const [parsingResume, setParsingResume] = useState(false);
   const [fileName, setFileName] = useState("");
+
+  // Feature 5 & 6 states: Cultural Alignment & ATS Match Score
+  const [culturalFramework, setCulturalFramework] = useState("standard");
+  const [atsScore, setAtsScore] = useState(0);
+  const [foundKeywords, setFoundKeywords] = useState([]);
+  const [missingKeywords, setMissingKeywords] = useState([]);
 
   const { user } = useUser();
   const router = useRouter();
@@ -156,6 +171,31 @@ function AddNewInterview() {
         throw new Error("Unable to extract text layers from PDF resume.");
       }
 
+      // Feature 6: Localized Pre-Flight ATS Scan
+      const textForScan = extractedText.toLowerCase();
+      // Break job focus description down to individual tags
+      const techTags = jobDescription
+        .split(/[\s,]+/)
+        .map(t => t.replace(/[^a-zA-Z0-9+#]/g, "").toLowerCase())
+        .filter(t => t.length > 2);
+      
+      const found = [];
+      const missing = [];
+      
+      techTags.forEach(tag => {
+        if (textForScan.includes(tag)) {
+          found.push(tag);
+        } else {
+          missing.push(tag);
+        }
+      });
+
+      // Compute visual match score percentages
+      const score = techTags.length > 0 ? Math.round((found.length / techTags.length) * 100) : 75;
+      setAtsScore(score || 75);
+      setFoundKeywords(found.slice(0, 5));
+      setMissingKeywords(missing.slice(0, 5));
+
       // Summarize resume context using Gemini AI
       const summaryPrompt = `Please summarize the following candidate resume, highlighting their key software projects, tech stacks, and career accomplishments. Keep it extremely concise (under 120 words) and high impact: \n\n${extractedText}`;
       const result = await chatSession.sendMessage(summaryPrompt);
@@ -168,6 +208,7 @@ function AddNewInterview() {
       toast.error("Failed to parse resume. Please ensure it is a text-based PDF.");
       setFileName("");
       setResumeSummary("");
+      setAtsScore(0);
     } finally {
       setParsingResume(false);
     }
@@ -176,15 +217,19 @@ function AddNewInterview() {
   const clearResume = () => {
     setFileName("");
     setResumeSummary("");
+    setAtsScore(0);
+    setFoundKeywords([]);
+    setMissingKeywords([]);
   };
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
   
-    // Inject resume summary context directly to prompt
+    // Feature 5 & 6 injection directly inside Gemini instruction block
     const inputPrompt = `Interview track: ${interviewTrack}. Job position: ${jobPosition}, Job Description: ${jobDescription}, Years of Experience: ${jobExperience}.
     ${resumeSummary ? `Candidate Resume Highlights & Projects: ${resumeSummary}.` : ""}
+    Evaluate the candidate strictly aligning with the chosen corporate cultural framework: ${culturalFramework}.
     Generate 5 interview questions and answers in JSON format. ${resumeSummary ? "Ensure that at least 2-3 of these questions directly target the candidate's resume projects and highlights to evaluate their hands-on engineering experience." : ""}`;
   
     try {
@@ -199,8 +244,10 @@ function AddNewInterview() {
           mockId: uuidv4(),
           jsonMockResp: JSON.stringify(mockResponse),
           jobPosition: jobPosition,
-          // Persist resume summary into Neon DB by appending it
-          jobDesc: jobDescription + (resumeSummary ? `|||resume:${resumeSummary}` : ""),
+          // Persist summary & cultural tags by serialization
+          jobDesc: jobDescription + 
+            (resumeSummary ? `|||resume:${resumeSummary}` : "") + 
+            `|||culture:${culturalFramework}`,
           jobExperience: jobExperience,
           interviewTrack: interviewTrack,
           createdBy: user?.primaryEmailAddress?.emailAddress,
@@ -244,7 +291,7 @@ function AddNewInterview() {
             </DialogTitle>
           </DialogHeader>
           <DialogDescription className="text-gray-400 text-xs sm:text-sm leading-relaxed mt-2">
-            Configure the parameters below and our AI engine will construct a custom 5-question mock session tailored specifically to your tech stack.
+            Configure the parameters below and our AI engine will construct a custom 5-question mock session tailored specifically to your tech stack and chosen values.
           </DialogDescription>
 
           <form onSubmit={onSubmit} className="space-y-6 mt-6">
@@ -302,6 +349,43 @@ function AddNewInterview() {
                   </label>
                 )}
 
+                {/* Feature 6: Pre-Flight ATS Scanner Scoreboard */}
+                {atsScore > 0 && (
+                  <div className="p-4 rounded-2xl bg-[#090d16] border border-white/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5">
+                        <Target size={12} />
+                        Pre-Flight ATS Score Audit
+                      </span>
+                      <strong className={`text-xs ${atsScore > 80 ? 'text-emerald-400' : atsScore > 50 ? 'text-indigo-400' : 'text-rose-400'}`}>
+                        {atsScore}% Keyword Match
+                      </strong>
+                    </div>
+
+                    <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${atsScore}%` }} 
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1 text-[10px]">
+                      {foundKeywords.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle size={10} /> Identified:</span>
+                          <span className="text-gray-400 truncate block">{foundKeywords.join(", ")}</span>
+                        </div>
+                      )}
+                      {missingKeywords.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-rose-400 font-bold flex items-center gap-1"><AlertCircle size={10} /> Missing:</span>
+                          <span className="text-gray-400 truncate block">{missingKeywords.join(", ")}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Display extracted Resume summary capsule */}
                 {resumeSummary && (
                   <div className="p-3.5 rounded-xl bg-purple-500/5 border border-purple-500/10 text-[11px] text-gray-400 leading-relaxed max-h-[85px] overflow-y-auto">
@@ -326,6 +410,26 @@ function AddNewInterview() {
                   {INTERVIEW_TRACKS.map((track) => (
                     <option key={track} value={track} className="bg-[#0b0f19] text-white">
                       {track}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Feature 5: Cultural Fit & Corporate Values Framework Selector */}
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                  <Target size={12} />
+                  Cultural Alignment Framework
+                </label>
+                <select
+                  className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white shadow-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
+                  value={culturalFramework}
+                  onChange={(e) => setCulturalFramework(e.target.value)}
+                  required
+                >
+                  {CULTURAL_FRAMEWORKS.map((framework) => (
+                    <option key={framework.id} value={framework.id} className="bg-[#0b0f19] text-white">
+                      {framework.name}
                     </option>
                   ))}
                 </select>
