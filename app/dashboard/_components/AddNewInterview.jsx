@@ -131,7 +131,7 @@ function AddNewInterview() {
   const [jobExperience, setJobExperience] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // Feature 6: PDF Resume tailoring and ATS scanner states
+  // Feature 6: Active PDF Resume tailoring and ATS scanner states
   const [resumeSummary, setResumeSummary] = useState("");
   const [parsingResume, setParsingResume] = useState(false);
   const [fileName, setFileName] = useState("");
