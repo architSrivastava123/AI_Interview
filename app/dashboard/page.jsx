@@ -166,7 +166,7 @@ function Dashboard() {
   const [benchmarking, setBenchmarking] = useState(false);
   const [benchmarksResult, setBenchmarksResult] = useState(null);
 
-  // Feature 9: Active Spaced-Repetition Revision Flashcard states
+  // Feature 9: Spaced-Repetition Revision Flashcards and rating states
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const MOCK_FLASHCARDS = [
