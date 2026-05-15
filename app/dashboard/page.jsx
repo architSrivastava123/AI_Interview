@@ -14,7 +14,8 @@ import {
   User,
   History,
   Activity,
-  FileText
+  FileText,
+  Handshake
 } from "lucide-react";
 import moment from "moment";
 
@@ -400,13 +401,22 @@ function Dashboard() {
               </div>
             </div>
 
-            <button 
-              onClick={() => setIsNewInterviewModalOpen(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-3 rounded-xl hover:scale-[1.03] shadow-lg shadow-indigo-500/25 text-sm font-bold transition-all"
-            >
-              <Plus size={18} />
-              New Interview
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button 
+                onClick={() => setIsNewInterviewModalOpen(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-3 rounded-xl hover:scale-[1.03] shadow-lg shadow-indigo-500/25 text-sm font-bold transition-all"
+              >
+                <Plus size={18} />
+                New Interview
+              </button>
+              
+              <Link href="/dashboard/negotiation">
+                <Button className="flex items-center gap-2 bg-white/5 border border-white/5 hover:bg-white/10 text-gray-300 hover:text-white px-5 py-3 rounded-xl shadow-md text-sm font-bold transition-all">
+                  <Handshake size={18} />
+                  Salary Negotiator
+                </Button>
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
