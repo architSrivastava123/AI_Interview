@@ -176,7 +176,7 @@ function Dashboard() {
     { q: "Describe JWT signature validation", a: "Verifying the hash integrity of the header and payload using a shared private key or public cert, ensuring parameters were not altered." }
   ];
 
-  // Feature 10: Active LinkedIn Icebreakers states
+  // Feature 10: LinkedIn Icebreakers and hook states
   const [linkedinInput, setLinkedinInput] = useState("");
   const [icebreakersResult, setIcebreakersResult] = useState([]);
   const [generatingIcebreakers, setGeneratingIcebreakers] = useState(false);
