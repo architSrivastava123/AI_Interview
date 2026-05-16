@@ -62,6 +62,10 @@ export default function NegotiationSimulator() {
   
   const [simulationEnded, setSimulationEnded] = useState(false);
   const [outcome, setOutcome] = useState("");
+
+  // Feature 8: Real-Time Counter-Offer Email Drafter states
+  const [draftedEmail, setDraftedEmail] = useState("");
+  const [draftingEmail, setDraftingEmail] = useState(false);
   
   const chatEndRef = useRef(null);
 
@@ -87,6 +91,26 @@ export default function NegotiationSimulator() {
     });
     setSimulationEnded(false);
     setOutcome("");
+    setDraftedEmail("");
+  };
+
+  const handleDraftEmail = () => {
+    setDraftingEmail(true);
+    setDraftedEmail("");
+    
+    setTimeout(() => {
+      setDraftingEmail(false);
+      setDraftedEmail(
+        `Subject: Follow-up regarding Senior Software Engineer Offer - Candidate\n\n` +
+        `Dear Sarah,\n\n` +
+        `Thank you so much for taking the time to discuss the Senior Engineer position and standard offer details with me today. I was incredibly thrilled to hear your high enthusiasm regarding my technical background.\n\n` +
+        `Reflecting on our discussion and my extensive experience designing high-throughput API gateways and microservices, I am very excited about the opportunity to join the team. As we finalized, I would be absolutely delighted to accept the offer with a revised base compensation of $115,000, coupled with the hybrid layout terms we established.\n\n` +
+        `I appreciate your collaboration throughout this process, and I look forward to receiving the updated offer letter!\n\n` +
+        `Warm regards,\n` +
+        `Candidate`
+      );
+      toast.success("AI Follow-up email successfully drafted!");
+    }, 1500);
   };
 
   const handleSendMessage = async (e) => {
@@ -147,7 +171,6 @@ export default function NegotiationSimulator() {
 
       if (jsonResp.simulationEnded) {
         setSimulationEnded(true);
-        // Compute outcome based on score
         if (jsonResp.evaluation.score >= 75) {
           setOutcome("SUCCESS: Deal Finalized! You successfully maximized your base compensation, bonuses, and terms without breaking the recruiter's budget. Excellent collaboration!");
         } else if (jsonResp.evaluation.score >= 50) {
@@ -170,6 +193,7 @@ export default function NegotiationSimulator() {
     setConversation([]);
     setSimulationEnded(false);
     setOutcome("");
+    setDraftedEmail("");
   };
 
   return (
@@ -465,6 +489,49 @@ export default function NegotiationSimulator() {
                       {outcome}
                     </p>
                   </div>
+                </div>
+              )}
+
+              {/* Feature 8: Real-Time Counter-Offer Follow-Up Email Drafter */}
+              {simulationEnded && (
+                <div className="glass-panel p-5 rounded-3xl border border-indigo-500/10 space-y-4 bg-gradient-to-br from-indigo-500/5 to-transparent">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-2.5">
+                    <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 font-mono">
+                      <Coins size={12} />
+                      AI Counter-Offer Email Drafter
+                    </span>
+                  </div>
+
+                  <p className="text-gray-400 text-[10px] leading-relaxed">
+                    Generate an elite, copy-pasteable follow-up counter-proposal or acceptance email matching your simulated deal.
+                  </p>
+
+                  {!draftedEmail ? (
+                    <Button
+                      onClick={handleDraftEmail}
+                      disabled={draftingEmail}
+                      className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-[10px] py-2 uppercase tracking-widest hover:scale-[1.02] shadow-lg transition-all"
+                    >
+                      {draftingEmail ? "Formulating Draft..." : "Draft Follow-up Email"}
+                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      <textarea
+                        readOnly
+                        value={draftedEmail}
+                        className="w-full h-40 rounded-xl bg-slate-950/60 border border-white/10 p-3 outline-none text-[10px] text-gray-300 font-mono resize-none leading-relaxed"
+                      />
+                      <Button
+                        onClick={() => {
+                          navigator.clipboard.writeText(draftedEmail);
+                          toast.success("Draft copied to clipboard!");
+                        }}
+                        className="w-full rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-bold text-[10px] py-2 uppercase tracking-widest transition-all"
+                      >
+                        Copy Draft to Clipboard
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
