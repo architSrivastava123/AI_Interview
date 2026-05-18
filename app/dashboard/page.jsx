@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import moment from "moment";
 import Link from 'next/link';
+import { Button } from "@/components/ui/button";
 
 import AddNewInterview from './_components/AddNewInterview'
 import InterviewList from './_components/InterviewList'
