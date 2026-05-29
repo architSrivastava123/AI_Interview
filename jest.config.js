@@ -1,11 +1,13 @@
+const nextJest = require('next/jest');
+
+const createJestConfig = nextJest({
+  dir: './',
+});
+
 /** @type {import('jest').Config} */
-const config = {
+const customConfig = {
   // Default to node; component tests override via @jest-environment docblock
   testEnvironment: 'node',
-
-  transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
-  },
 
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
@@ -68,4 +70,4 @@ const config = {
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json'],
 };
 
-module.exports = config;
+module.exports = createJestConfig(customConfig);

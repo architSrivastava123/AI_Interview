@@ -179,10 +179,10 @@ describe('Recommendation Flow — Step 5: Next Interview Suggestion', () => {
   });
 
   test('difficulty escalates with high scores', () => {
-    const highSessions = [
-      { jobTrack: 'Frontend', compositeScore: 90 },
-      { jobTrack: 'Backend',  compositeScore: 88 },
-    ];
+    const highSessions = Object.keys(DOMAIN_SKILL_MAP).map(track => ({
+      jobTrack: track,
+      compositeScore: 90,
+    }));
     const suggestion = getNextInterviewSuggestion(highSessions);
     // High performers get Hard or Expert difficulty
     expect(['Hard', 'Expert']).toContain(suggestion.difficulty);

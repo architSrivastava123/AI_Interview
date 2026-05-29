@@ -57,8 +57,9 @@ describe('utils/db — database connection factory', () => {
     db = require('../../utils/db').db;
   });
 
-  test('neon() is called with the DB URL environment variable', () => {
-    expect(neonMock.neon).toHaveBeenCalledWith(process.env.NEXT_PUBLIC_DRIZZLE_DB_URL);
+  test('neon() is called with the DB URL environment variable or safe fallback', () => {
+    const expectedUrl = process.env.NEXT_PUBLIC_DRIZZLE_DB_URL || 'postgresql://dummy:dummy@localhost:5432/dummy';
+    expect(neonMock.neon).toHaveBeenCalledWith(expectedUrl);
   });
 
   test('drizzle() is called with the neon SQL connection', () => {
