@@ -7,7 +7,7 @@ import app from '../src/app.js';
 import { connectDB } from '../src/config/db.js';
 import { initializeKnowledgeBase } from '../src/rag/vectorStore/mongoVectorStore.js';
 
-let isInitialized = false;
+let isKnowledgeLoaded = false;
 
 export default async function handler(req, res) {
   // Direct preflight handling for Vercel Serverless Functions
@@ -19,14 +19,15 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  if (!isInitialized) {
-    try {
-      await connectDB();
+  // Ensure DB is connected before processing request
+  try {
+    await connectDB();
+    if (!isKnowledgeLoaded) {
       await initializeKnowledgeBase();
-      isInitialized = true;
-    } catch (err) {
-      console.warn('Vercel serverless init notice:', err.message);
+      isKnowledgeLoaded = true;
     }
+  } catch (err) {
+    console.error('Database connection error in serverless handler:', err.message);
   }
 
   return app(req, res);

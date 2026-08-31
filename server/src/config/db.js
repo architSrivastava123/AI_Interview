@@ -1,39 +1,46 @@
 /**
  * db.js
- * Configures Mongoose connection to MongoDB.
+ * Configures Mongoose connection to MongoDB with Serverless Connection Caching.
  */
 
 import mongoose from 'mongoose';
 import { env } from './env.js';
 
-let isConnected = false;
+let cachedConnection = null;
 
 export async function connectDB() {
-  if (isConnected) {
+  if (mongoose.connection.readyState >= 1) {
     return mongoose.connection;
   }
 
-  try {
-    const conn = await mongoose.connect(env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    isConnected = true;
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-    return conn;
-  } catch (error) {
-    console.error(`❌ MongoDB connection error: ${error.message}`);
-    if (env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
-    // In dev / test, don't crash the server so tests or standalone runs can still work
+  if (cachedConnection) {
+    return cachedConnection;
+  }
+
+  const uri = process.env.MONGODB_URI || env.MONGODB_URI;
+  if (!uri) {
+    console.warn('⚠️ MONGODB_URI is not set. Database queries will not persist.');
     return null;
+  }
+
+  try {
+    cachedConnection = await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+    });
+    console.log(`✅ MongoDB Connected: ${cachedConnection.connection.host}`);
+    return cachedConnection;
+  } catch (error) {
+    cachedConnection = null;
+    console.error(`❌ MongoDB connection error: ${error.message}`);
+    throw error;
   }
 }
 
 export async function disconnectDB() {
-  if (isConnected) {
+  if (mongoose.connection.readyState >= 1) {
     await mongoose.disconnect();
-    isConnected = false;
+    cachedConnection = null;
     console.log('MongoDB disconnected');
   }
 }
