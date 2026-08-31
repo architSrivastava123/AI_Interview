@@ -14,12 +14,6 @@ An AI-powered technical mock interview platform that uses a candidate's resume, 
 
 ---
 
-## 📸 Preview
-
-![MockMate AI Landing Page](docs/screenshots/landing_page.png)
-
----
-
 ## 🏗️ System Architecture
 
 ```text
@@ -94,11 +88,9 @@ An AI-powered technical mock interview platform that uses a candidate's resume, 
 │   ├── system-design/          # Caching & CDN, Microservices vs Monolith, DB Scaling
 │   └── behavioral/             # STAR Method, Conflict Resolution
 │
-├── tests/                      # Automated Unit & Integration Test Suite
-│   ├── unit/                   # Scoring Engine, Speech Telemetry, Skill Gap, Vector Math, Adaptive Nodes
-│   └── integration/            # Express REST API Endpoints & Auth Middleware
-│
-└── docs/screenshots/           # UI Documentation & Screenshots
+└── tests/                      # Automated Unit & Integration Test Suite
+    ├── unit/                   # Scoring Engine, Speech Telemetry, Skill Gap, Vector Math, Adaptive Nodes
+    └── integration/            # Express REST API Endpoints & Auth Middleware
 ```
 
 ---
