@@ -1,6 +1,6 @@
 /**
  * app.js
- * Express application configuration and route registration.
+ * Express application configuration, CORS handling, and route registration.
  */
 
 import express from 'express';
@@ -17,9 +17,20 @@ import recommendationRoutes from './routes/recommendationRoutes.js';
 
 const app = express();
 
-// Middleware
+// Permissive CORS for local and Vercel domains
 app.use(cors({
-  origin: [env.CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (
+      origin === env.CLIENT_URL ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      origin.endsWith('.vercel.app')
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true,
 }));
 
@@ -30,7 +41,24 @@ if (env.NODE_ENV !== 'test') {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check
+// Root welcome & API index
+app.get(['/', '/api'], (req, res) => {
+  res.status(200).json({
+    status: 'active',
+    service: 'MockMate AI Backend REST API',
+    version: '2.0.0',
+    endpoints: {
+      health: '/api/health',
+      interviews: '/api/interviews',
+      resumes: '/api/resumes',
+      reports: '/api/reports',
+      analytics: '/api/analytics',
+      recommendations: '/api/recommendations',
+    },
+  });
+});
+
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
