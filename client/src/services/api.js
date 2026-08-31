@@ -12,9 +12,6 @@ const defaultApiUrl = isProductionVercel && !window.location.hostname.includes('
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || defaultApiUrl,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 let getTokenFunction = null;
@@ -37,9 +34,15 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       } else {
-        // In local development mode without clerk signed in
         const devToken = localStorage.getItem('mockmate_dev_token') || 'dev_user_123';
         config.headers.Authorization = `Bearer ${devToken}`;
+      }
+
+      // If sending FormData, do not force application/json
+      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      } else if (!config.headers['Content-Type']) {
+        config.headers['Content-Type'] = 'application/json';
       }
     } catch (err) {
       console.warn('Could not attach Clerk token to request:', err);
@@ -53,7 +56,7 @@ api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     const errorPayload = error.response?.data?.error || {
-      message: error.message || 'An error occurred connecting to server.',
+      message: error.response?.data?.message || error.message || 'An error occurred connecting to server.',
     };
     return Promise.reject(errorPayload);
   }
