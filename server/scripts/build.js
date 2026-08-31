@@ -49,5 +49,10 @@ if (fs.existsSync(rootKnowledge) && !fs.existsSync(distKnowledge)) {
   fs.cpSync(localKnowledge, distKnowledge, { recursive: true });
 }
 
+const serverPkg = path.resolve(process.cwd(), 'package.json');
+if (fs.existsSync(serverPkg)) {
+  fs.copyFileSync(serverPkg, path.join(distDir, 'package.json'));
+}
+
 console.log('✅ MockMate Backend serverless build ready with verified entrypoints in dist/.');
 process.exit(0);
