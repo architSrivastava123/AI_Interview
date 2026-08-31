@@ -7,7 +7,7 @@ import axios from 'axios';
 
 const isProductionVercel = typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
 const defaultApiUrl = isProductionVercel && !window.location.hostname.includes('server')
-  ? 'https://server-phi-sandy-11.vercel.app/api'
+  ? 'https://server-livid-one-58.vercel.app/api'
   : '/api';
 
 const api = axios.create({
