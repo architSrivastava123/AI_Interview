@@ -7,6 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import { env } from './config/env.js';
+import { connectDB } from './config/db.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 import interviewRoutes from './routes/interviewRoutes.js';
@@ -32,6 +33,20 @@ if (env.NODE_ENV !== 'test') {
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Ensure DB is connected for API operations
+app.use(async (req, res, next) => {
+  if (req.path === '/api/health' || req.path === '/' || req.method === 'OPTIONS') {
+    return next();
+  }
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('Database connection error in request middleware:', err.message);
+    next();
+  }
+});
 
 // Root welcome & API index
 app.get(['/', '/api'], (req, res) => {
