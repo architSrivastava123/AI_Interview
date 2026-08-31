@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+  }
+
+  body {
+    background-color: #090d16;
+    color: #f1f5f9;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Developer SaaS custom utility classes */
+.panel-border {
+  border: 1px solid #1e293b;
+}
+
+.panel-subtle {
+  border: 1px solid #334155;
+}
+
+.code-font {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
